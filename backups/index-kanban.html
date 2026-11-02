@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Board</title>
+<style>
+  :root {
+    --paper: #F6F7F5;
+    --lane: #ECEEEA;
+    --card: #FFFFFF;
+    --line: #D9DCD6;
+    --ink: #1D2421;
+    --muted: #5F6763;
+    --blue: #3B6BC9;
+    --green: #2E8A61;
+    --red: #C4453E;
+    --font: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.45; }
+
+  .top { display: flex; align-items: baseline; gap: 14px; padding: 28px 32px 8px; }
+  .top h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { padding: 0 32px 20px; margin: 0; color: var(--muted); font-size: 14px; }
+
+  .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 0 32px 40px; align-items: start; }
+  .lane { background: var(--lane); border-radius: 10px; padding: 14px 12px 12px; min-height: 200px; }
+  .lane.drag-over { background: #E2E6DF; outline: 2px dashed var(--blue); }
+  .lane-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 12px; }
+  .lane-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .count { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: #DFE2DC; color: var(--muted); font-size: 12.5px; font-weight: 600; text-align: center; }
+  .cards { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+
+  .card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px 11px 16px; cursor: pointer; user-select: none; }
+  .card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 8px 0 0 8px; background: var(--strip, var(--blue)); }
+  .card.blue { --strip: var(--blue); }
+  .card.green { --strip: var(--green); }
+  .card.red { --strip: var(--red); }
+  .card h3 { margin: 0; font-size: 14.5px; font-weight: 500; word-break: break-word; }
+  .card.dragging { opacity: 0.4; }
+
+  .add { margin-top: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+  .add:hover, .add:focus-visible { background: #E2E5E0; color: var(--ink); }
+  .add::before { content: "+ "; }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(29,36,33,.4); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+  .modal-backdrop.open { display: flex; }
+  .dialog { width: 100%; max-width: 420px; background: var(--card); border-radius: 12px; padding: 22px 22px 18px; box-shadow: 0 20px 44px rgba(29,36,33,.22); }
+  .dialog h3 { margin: 0 0 16px; font-size: 17px; font-weight: 600; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+  .field { margin-bottom: 14px; }
+  input[type=text] { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 14.5px; color: var(--ink); background: #fff; }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .field.error input { border-color: var(--red); }
+  .error-msg { margin: 6px 0 0; font-size: 13px; color: var(--red); display: none; }
+  .field.error .error-msg { display: block; }
+  .swatches { display: flex; gap: 10px; }
+  .swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+  .swatch.on { box-shadow: 0 0 0 2px var(--ink); }
+  .swatch.blue { background: var(--blue); }
+  .swatch.green { background: var(--green); }
+  .swatch.red { background: var(--red); }
+  .actions { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+  .actions .spacer { flex: 1; }
+  .btn { padding: 9px 16px; border-radius: 7px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.danger { border-color: transparent; color: var(--red); padding-left: 4px; }
+  .btn.danger:hover { text-decoration: underline; }
+
+  @media (max-width: 760px) {
+    .top, .sub, .board { padding-left: 16px; padding-right: 16px; }
+    .board { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>My Board</h1>
+</header>
+<p class="sub">Drag a card to move it along.</p>
+
+<main class="board" id="board">
+  <!-- Lanes rendered by JS -->
+</main>
+
+<div class="modal-backdrop" id="modal">
+  <div class="dialog" role="dialog" aria-labelledby="modal-title">
+    <h3 id="modal-title">Add card</h3>
+    <form id="card-form" onsubmit="event.preventDefault();">
+      <div class="field" id="title-field">
+        <label for="card-title">Title</label>
+        <input id="card-title" type="text" autocomplete="off" />
+        <p class="error-msg" id="title-error">Add a title to save this card.</p>
+      </div>
+      <div class="field">
+        <label>Colour</label>
+        <div class="swatches" id="swatches">
+          <button type="button" class="swatch blue on" data-color="blue" aria-label="Blue"></button>
+          <button type="button" class="swatch green" data-color="green" aria-label="Green"></button>
+          <button type="button" class="swatch red" data-color="red" aria-label="Red"></button>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn danger" id="delete-btn" type="button" style="display:none;">Delete</button>
+        <span class="spacer"></span>
+        <button class="btn" id="cancel-btn" type="button">Cancel</button>
+        <button class="btn primary" id="save-btn" type="submit">Save card</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const COLUMNS = [
+    { id: 'todo', name: 'To Do' },
+    { id: 'doing', name: 'Doing' },
+    { id: 'done', name: 'Done' }
+  ];
+
+  let cards = JSON.parse(localStorage.getItem('kanban_cards') || '[]');
+  let activeCardId = null;
+  let activeColId = null;
+  let selectedColor = 'blue';
+
+  function saveStorage() {
+    localStorage.setItem('kanban_cards', JSON.stringify(cards));
+  }
+
+  function render() {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+
+    COLUMNS.forEach(col => {
+      const colCards = cards.filter(c => c.columnId === col.id);
+      const lane = document.createElement('section');
+      lane.className = 'lane';
+      lane.dataset.colId = col.id;
+
+      lane.innerHTML = `
+        <div class="lane-head">
+          <h2>${col.name}</h2>
+          <span class="count">${colCards.length}</span>
+        </div>
+        <div class="cards" data-col-id="${col.id}"></div>
+        <button class="add" type="button">Add card</button>
+      `;
+
+      const cardsContainer = lane.querySelector('.cards');
+      colCards.forEach(card => {
+        const el = document.createElement('article');
+        el.className = `card ${card.color || 'blue'}`;
+        el.draggable = true;
+        el.dataset.id = card.id;
+        el.innerHTML = `<h3>${escapeHtml(card.title)}</h3>`;
+
+        el.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', card.id);
+          el.classList.add('dragging');
+        });
+        el.addEventListener('dragend', () => {
+          el.classList.remove('dragging');
+        });
+        el.addEventListener('click', () => openEditModal(card));
+
+        cardsContainer.appendChild(el);
+      });
+
+      lane.querySelector('.add').addEventListener('click', () => openAddModal(col.id));
+
+      lane.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        lane.classList.add('drag-over');
+      });
+      lane.addEventListener('dragleave', () => lane.classList.remove('drag-over'));
+      lane.addEventListener('drop', (e) => {
+        e.preventDefault();
+        lane.classList.remove('drag-over');
+        const cardId = e.dataTransfer.getData('text/plain');
+        const card = cards.find(c => c.id === cardId);
+        if (card && card.columnId !== col.id) {
+          card.columnId = col.id;
+          saveStorage();
+          render();
+        }
+      });
+
+      board.appendChild(lane);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function openAddModal(columnId) {
+    activeCardId = null;
+    activeColId = columnId;
+    selectedColor = 'blue';
+    document.getElementById('modal-title').textContent = 'Add card';
+    document.getElementById('card-title').value = '';
+    document.getElementById('title-field').classList.remove('error');
+    document.getElementById('delete-btn').style.display = 'none';
+    updateSwatches();
+    document.getElementById('modal').classList.add('open');
+    document.getElementById('card-title').focus();
+  }
+
+  function openEditModal(card) {
+    activeCardId = card.id;
+    activeColId = card.columnId;
+    selectedColor = card.color || 'blue';
+    document.getElementById('modal-title').textContent = 'Edit card';
+    document.getElementById('card-title').value = card.title;
+    document.getElementById('title-field').classList.remove('error');
+    document.getElementById('delete-btn').style.display = 'inline-block';
+    updateSwatches();
+    document.getElementById('modal').classList.add('open');
+    document.getElementById('card-title').focus();
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+  }
+
+  function updateSwatches() {
+    document.querySelectorAll('.swatch').forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.color === selectedColor);
+    });
+  }
+
+  document.getElementById('swatches').addEventListener('click', (e) => {
+    const btn = e.target.closest('.swatch');
+    if (btn) {
+      selectedColor = btn.dataset.color;
+      updateSwatches();
+    }
+  });
+
+  document.getElementById('cancel-btn').addEventListener('click', closeModal);
+  document.getElementById('modal').addEventListener('click', (e) => {
+    if (e.target.id === 'modal') closeModal();
+  });
+
+  document.getElementById('delete-btn').addEventListener('click', () => {
+    if (activeCardId) {
+      cards = cards.filter(c => c.id !== activeCardId);
+      saveStorage();
+      render();
+      closeModal();
+    }
+  });
+
+  document.getElementById('save-btn').addEventListener('click', () => {
+    const title = document.getElementById('card-title').value.trim();
+    if (!title) {
+      document.getElementById('title-field').classList.add('error');
+      return;
+    }
+    if (activeCardId) {
+      const card = cards.find(c => c.id === activeCardId);
+      if (card) {
+        card.title = title;
+        card.color = selectedColor;
+      }
+    } else {
+      cards.push({
+        id: 'card-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        title: title,
+        color: selectedColor,
+        columnId: activeColId || 'todo'
+      });
+    }
+    saveStorage();
+    render();
+    closeModal();
+  });
+
+  render();
+</script>
+</body>
+</html>

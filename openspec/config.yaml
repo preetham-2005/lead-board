@@ -1,0 +1,13 @@
+schema: spec-driven
+
+context: |
+  Week 10 training project. The product owner does not write code; explain everything in plain English.
+  The app is one file, index.html: plain HTML, CSS and JavaScript. No frameworks, no build step, no new libraries.
+  Data is saved in the browser's local storage.
+  The look comes from the approved mockup in the design folder.
+
+rules:
+  tasks:
+    - Each task must end with something the product owner can see or click in the browser.
+  specs:
+    - Include a scenario for refreshing the page.

@@ -1,0 +1,14 @@
+WEEK 10 STARTER PACK - OpenCode
+
+1. Unzip this pack. Move the kanban-board folder somewhere easy, like Documents.
+2. Open the kanban-board folder in the OpenCode desktop app.
+3. Follow the Setup section of your Week 10 doc.
+
+What is inside
+- index.html ............ the starter app (a board that does nothing yet)
+- openspec .............. where the plans and specs will live
+- .agents/skills ......... OpenSpec commands, the Taste skill (minimalist-ui) and the Ponytail review skill
+- AGENTS.md ............. Ponytail rules, always on
+
+Everything here is plain text. Nothing in this pack runs on its own.
+Third-party files and their licenses: THIRD-PARTY-NOTICES.md and the licenses folder.

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Board · design mockup</title>
+<!--
+  Week 10 design mockup: My Board (OpenCode track).
+  A static picture of the screen. Nothing here works yet, on purpose.
+  The agent should match this look and layout, not copy the sample cards.
+-->
+<style>
+  :root {
+    --paper: #F6F7F5;   /* page */
+    --lane: #ECEEEA;    /* columns */
+    --card: #FFFFFF;
+    --line: #D9DCD6;
+    --ink: #1D2421;
+    --muted: #5F6763;
+    --blue: #3B6BC9;
+    --green: #2E8A61;
+    --red: #C4453E;
+    --overdue-ink: #9E2F29;
+    --font: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.45; }
+
+  /* Header */
+  .top { display: flex; align-items: baseline; gap: 14px; padding: 28px 32px 8px; }
+  .top h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { padding: 0 32px 20px; margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* Board */
+  .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 0 32px 40px; align-items: start; }
+  .lane { background: var(--lane); border-radius: 10px; padding: 14px 12px 12px; }
+  .lane-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 12px; }
+  .lane-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .count { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: #DFE2DC; color: var(--muted); font-size: 12.5px; font-weight: 600; text-align: center; }
+  .cards { display: flex; flex-direction: column; gap: 8px; }
+
+  .card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px 11px 16px; }
+  .card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 8px 0 0 8px; background: var(--strip); }
+  .card.blue { --strip: var(--blue); } .card.green { --strip: var(--green); } .card.red { --strip: var(--red); }
+  .card h3 { margin: 0; font-size: 14.5px; font-weight: 500; }
+  .meta { margin: 6px 0 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+
+  /* Drag: the only element with depth */
+  .slot-from { height: 46px; border: 1.5px dashed #C3C7C0; border-radius: 8px; }
+  .drop { border: 1.5px dashed var(--blue); border-radius: 8px; background: rgba(59,107,201,.06); padding: 6px; }
+  .card.dragging { transform: translateX(-22px) rotate(-3deg); box-shadow: 0 14px 28px rgba(29,36,33,.18), 0 2px 6px rgba(29,36,33,.10); border-color: #C9CDC6; }
+
+  .add { margin-top: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+  .add:hover, .add:focus-visible { background: #E2E5E0; color: var(--ink); }
+  .add::before { content: "+ "; }
+
+  /* Pop-up states, shown below the board */
+  .states { padding: 8px 32px 56px; }
+  .states h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+  .states > p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+  .state-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .backdrop { background: rgba(29,36,33,.32); border-radius: 12px; padding: 28px; display: flex; justify-content: center; }
+  .dialog { width: 100%; max-width: 420px; background: var(--card); border-radius: 12px; padding: 22px 22px 18px; box-shadow: 0 20px 44px rgba(29,36,33,.22); }
+  .dialog h3 { margin: 0 0 16px; font-size: 17px; font-weight: 600; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+  .field { margin-bottom: 14px; }
+  input[type=text], input[type=date], textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 14.5px; color: var(--ink); background: #fff; }
+  textarea { min-height: 64px; resize: vertical; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .error input { border-color: var(--red); }
+  .error-msg { margin: 6px 0 0; font-size: 13px; color: var(--red); }
+  .swatches { display: flex; gap: 10px; }
+  .swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+  .swatch.on { box-shadow: 0 0 0 2px var(--ink); }
+  .swatch.blue { background: var(--blue); } .swatch.green { background: var(--green); } .swatch.red { background: var(--red); }
+  .actions { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+  .actions .spacer { flex: 1; }
+  .btn { padding: 9px 16px; border-radius: 7px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.danger { border-color: transparent; color: var(--red); padding-left: 4px; }
+
+  @media (max-width: 760px) {
+    .top, .sub, .board, .states { padding-left: 16px; padding-right: 16px; }
+    .board { grid-template-columns: 1fr; }
+    .state-row { grid-template-columns: 1fr; }
+    .backdrop { padding: 16px; }
+    .card.dragging { transform: translateX(-10px) rotate(-2deg); }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>My Board</h1>
+</header>
+<p class="sub">Drag a card to move it along.</p>
+
+<main class="board">
+  <section class="lane">
+    <div class="lane-head"><h2>To Do</h2><span class="count">2</span></div>
+    <div class="cards">
+      <article class="card blue">
+        <h3>Buy milk</h3>
+      </article>
+      <article class="card red">
+        <h3>Book train tickets</h3>
+      </article>
+      <div class="slot-from" aria-hidden="true"></div>
+    </div>
+    <button class="add" type="button">Add card</button>
+  </section>
+
+  <section class="lane">
+    <div class="lane-head"><h2>Doing</h2><span class="count">1</span></div>
+    <div class="cards">
+      <div class="drop">
+        <article class="card green dragging">
+          <h3>Prepare slides for Monday</h3>
+        </article>
+      </div>
+      <article class="card green">
+        <h3>Fix the kitchen tap</h3>
+      </article>
+    </div>
+    <button class="add" type="button">Add card</button>
+  </section>
+
+  <section class="lane done">
+    <div class="lane-head"><h2>Done</h2><span class="count">2</span></div>
+    <div class="cards">
+      <article class="card blue">
+        <h3>Pay electricity bill</h3>
+      </article>
+      <article class="card green">
+        <h3>Call Mum</h3>
+      </article>
+    </div>
+    <button class="add" type="button">Add card</button>
+  </section>
+</main>
+
+<section class="states">
+  <h2>Add or edit a card</h2>
+  <p>The same pop-up opens from "Add card" and from clicking a card. Shown twice: while editing, and after Save with an empty title.</p>
+  <div class="state-row">
+    <div class="backdrop">
+      <div class="dialog" role="dialog" aria-labelledby="d1">
+        <h3 id="d1">Edit card</h3>
+        <div class="field"><label for="t1">Title</label><input id="t1" type="text" value="Buy milk"></div>
+        <div class="field"><label>Colour</label>
+          <div class="swatches"><span class="swatch blue on" title="Blue, selected"></span><span class="swatch green" title="Green"></span><span class="swatch red" title="Red"></span></div>
+        </div>
+        <div class="actions">
+          <button class="btn danger" type="button">Delete</button>
+          <span class="spacer"></span>
+          <button class="btn" type="button">Cancel</button>
+          <button class="btn primary" type="button">Save card</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="backdrop">
+      <div class="dialog" role="dialog" aria-labelledby="d2">
+        <h3 id="d2">Add card</h3>
+        <div class="field error"><label for="t2">Title</label><input id="t2" type="text" value="" aria-describedby="e2"><p class="error-msg" id="e2">Add a title to save this card.</p></div>
+        <div class="field"><label>Colour</label>
+          <div class="swatches"><span class="swatch blue" title="Blue"></span><span class="swatch green on" title="Green, selected"></span><span class="swatch red" title="Red"></span></div>
+        </div>
+        <div class="actions">
+          <span class="spacer"></span>
+          <button class="btn" type="button">Cancel</button>
+          <button class="btn primary" type="button">Save card</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
